@@ -98,10 +98,11 @@ public class GLWindow implements Runnable{
                     width = w;
                     height = h;
                     
-                    // Fit the GL view to the window
+                    // Fit the GL view to the window, updates aspect ratio for Text, Camera, and UI
                     glViewport(0,0,width,height);
-                    localScene.camera.aspect = (float)width/height;
+                    localScene.camera.setViewDimensions(width, height);
                     localScene.camera.updatePerspective();
+                    TextMesh.updateAspect();
                 }
             }
         );

@@ -5,6 +5,8 @@ import core.Mesh;
 import core.Shader;
 import java.util.ArrayList;
 import static org.lwjgl.opengl.GL11.*;
+import static org.lwjgl.opengl.GL13.GL_TEXTURE0;
+import static org.lwjgl.opengl.GL13.glActiveTexture;
 
 public class InstanceRender implements Renderable{
     private Mesh mesh;
@@ -29,12 +31,7 @@ public class InstanceRender implements Renderable{
         else
             glDisable(GL_CULL_FACE);
         
-        if(textureID != 0){
-            glEnable(GL_TEXTURE_2D);
-            glBindTexture(GL_TEXTURE_2D, textureID);
-        }
-        else
-            glDisable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, textureID);
         
         for(Instance instance:instances){
             if(instance.visible){

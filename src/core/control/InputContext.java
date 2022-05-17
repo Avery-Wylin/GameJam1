@@ -48,6 +48,7 @@ public abstract class InputContext {
             
             public Vector3f orbitAngle = new Vector3f();
             public float orbitRad = 4f;
+            public boolean isActingForce = false;
             
             @Override
             public void keyInput(long windowID, int key, int scancode, int action, int mods) {
@@ -72,38 +73,59 @@ public abstract class InputContext {
                             glfwSetWindowShouldClose(windowID, true);
                             break;
                         case GLFW_KEY_R:
-                            activeWindow.localScene.test.getArmature().resetAnimation();
+                            //activeWindow.localScene.test.getArmature().resetAnimation();
                             break;
                         case GLFW_KEY_T:
-                            activeWindow.localScene.test.getArmature().addTime(1f);
-                            System.out.println(activeWindow.localScene.test.getArmature().getTime());
+                            //activeWindow.localScene.test.getArmature().addTime(1f);
+                            //System.out.println(activeWindow.localScene.test.getArmature().getTime());
                             break;
                         case GLFW_KEY_F:
                             //activeWindow.localScene.test.getArmature().forceUpdate();
-                            activeWindow.localScene.test.getArmature().printHierarchy();
+                            //activeWindow.localScene.test.getArmature().printHierarchy();
                             break;
+                        case GLFW_KEY_P:
+                            activeWindow.localScene.paused = !activeWindow.localScene.paused;
+                            break;
+                        case GLFW_KEY_Y:
+                            isActingForce = true;
+                            break;
+                    }
+                }
+                else if(action == GLFW_RELEASE){
+                    switch(key){
+                      case GLFW_KEY_Y:
+                            isActingForce = false;
+                            break;  
                     }
                 }
             }
 
             @Override
             public void cursorInput(long windowID, double x, double y) {
-                if (activeWindow.width > 0 && activeWindow.height > 0 && !activeWindow.enableCursor) {
+                
+                if (activeWindow.width <= 0 || activeWindow.height <= 0)
+                    return;
+                
+                if( !activeWindow.enableCursor) {
                         //Camera.defaultCamera.rot.y -= (x - width / 2) / width;
                         orbitAngle.y -= (x - activeWindow.width / 2) / activeWindow.width;
                     if (Math.abs(activeWindow.localScene.camera.rot.x + (y - activeWindow.height / 2)) / activeWindow.height < 1f) {
                         //Camera.defaultCamera.rot.x -= (y - height / 2) / height;
                         orbitAngle.x -= (y - activeWindow.height / 2) / activeWindow.height;
                     }
-                    activeWindow.localScene.camera.rotateAround(new Vector3f(0,0,0), orbitAngle, orbitRad);
+                    activeWindow.localScene.camera.rotateAround(orbitAngle, orbitRad);
                     glfwSetCursorPos(windowID, activeWindow.width / 2, activeWindow.height / 2);
+                }
+                else if(isActingForce){
+                   Vector3f ray = activeWindow.localScene.camera.rayCast((float)x, (float)y, 15);
+                   activeWindow.localScene.physics.attractTowards(ray.x, ray.y, ray.z, 40f);
                 }
             }
 
             @Override
             public void scrollInput(long window, double xoffset, double yoffset) {
                 orbitRad-=yoffset*.5f;
-                activeWindow.localScene.camera.rotateAround(new Vector3f(0,0,0), orbitAngle, orbitRad);
+                activeWindow.localScene.camera.rotateAround(orbitAngle, orbitRad);
             }
 
             @Override

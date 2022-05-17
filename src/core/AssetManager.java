@@ -69,7 +69,7 @@ public class AssetManager {
     }
     
     public static void loadResources(){
-        AssimpLoader.loadFromFBX("tetrapod");
+        AssimpLoader.loadFromFBX("test");
         TextureManager.createTexture("sand");
     }
     

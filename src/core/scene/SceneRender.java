@@ -9,7 +9,6 @@ import core.instances.Renderable;
 import core.instances.InstanceRender;
 import java.util.HashMap;
 import java.util.LinkedList;
-import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
 import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;

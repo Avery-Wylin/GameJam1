@@ -18,8 +18,10 @@ public class TextMesh {
     private static Shader shader;
     private Vector3f color = new Vector3f();
     private Matrix4f transform =  new Matrix4f().translation(0,0,0);
-    private Matrix4f temp = new Matrix4f();
+    private Vector3f pos = new Vector3f();
+    private float scale = 1;
     public boolean useCamera = false;
+    private float width = 0, height = 0;
     private static final int
             ATTRB_POS = 0,
             ATTRB_UV = 1,
@@ -94,6 +96,9 @@ public class TextMesh {
         float[] pos = new float[text.length()*8];
         float[] uv = new float[text.length()*8];
         
+        width = 0;
+        height = 0;
+        
         int posIndex = 0;
         int uvIndex = 0;
         int xoffset = 0;
@@ -139,7 +144,10 @@ public class TextMesh {
             uv[uvIndex++] = (1-glyph.y)/font.resolution;
             
             xoffset += glyph.xadvance;
+            width = Math.max(xoffset,width);
         }
+        height = (yoffset+font.lineHeight)/font.resolution;
+        width/=font.resolution;
         
         vertCount = pos.length/2;
         loadAttributePos(pos);
@@ -150,11 +158,47 @@ public class TextMesh {
         if( VAO != 0){
             glBindTexture(GL_TEXTURE_2D, fontTextureID);
             shader.bind();
-            shader.uniformMatrix4f(Shader.TRANSFORM, temp.set(Scene.camera.perspective).mul(Scene.camera.transform).mul(transform));
+            shader.uniformMatrix4f(Shader.TRANSFORM, transform);
+            shader.uniformVector3f(Shader.TEXT_COLOR, color);
             glBindVertexArray(VAO);
             glEnableVertexAttribArray(ATTRB_POS);
             glEnableVertexAttribArray(ATTRB_UV);
             glDrawArrays(GL_QUADS, 0, vertCount);
+        }
+    }
+    
+    public float getWidth(){
+        return width/2f;
+    }
+    
+    public float getHeight(){
+        return height/2f;
+    }
+    
+    public void setTransform2D(float scale, float x, float y){
+        useCamera = true;
+        this.scale = scale;
+        pos.x = x;
+        pos.y = y;
+        updateTransform2D();
+    }
+    
+    private void updateTransform2D(){
+        transform.identity().translate((pos.x*2f-1),-(pos.y*2f-1),0).scaleXY(scale/Scene.camera.aspect, scale);//;
+    }
+    
+    public void setTransform3D(Vector3f pos, Vector3f rot, float scale){
+        useCamera = false;
+        this.pos.set(pos);
+        this.scale = scale;
+        transform.translation(pos).rotateXYZ(rot).scale(scale);
+    }
+    
+    public static void updateAspect(){
+        for(TextMesh textMesh:loadedText){
+            if(textMesh.useCamera){
+                textMesh.updateTransform2D();
+            }
         }
     }
     

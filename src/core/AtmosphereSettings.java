@@ -48,8 +48,8 @@ public class AtmosphereSettings {
         zenith = new Vector3f(.85f,.9f, 1f);
         horizon = new Vector3f(.65f,.85f,.9f);
         albedo = new Vector3f(.2f,.3f,.7f);
-        fog_density = .1f;
-        fog_exponent = 1f;
+        fog_density = .03f;
+        fog_exponent = 2f;
         world_exponent = .5f;
         updated = true;
     }
