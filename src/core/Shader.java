@@ -7,7 +7,6 @@ import java.util.ArrayList;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
-import org.lwjgl.opengl.GL20;
 import static org.lwjgl.opengl.GL20.*;
 
 public abstract class Shader {
@@ -17,33 +16,40 @@ public abstract class Shader {
     public static final int MAX_UNIFORM_COUNT = 16;
     public static final int MAX_JOINT_COUNT = 64;
     public static Shader defaultShader, animatedShader;
+    public static boolean enableCausticTexture = false;
     
     // Common uniforms
     public static final int
-            TRANSFORM = 0, FBO_IMAGE = 0,
-            CAMERA = 1, FBO_DEPTH = 1,
-            PERSPECTIVE = 2,
-            DIFFUSE = 3, TEXT_COLOR = 3,
-            SPECULAR = 4,
-            WORLD_EXPONENT = 5,
-            GLOSS = 6,
-            ZENITH = 7,
-            HORIZON = 8,
-            ALBEDO = 9,
-            FOG_DENSITY = 10,
-            FOG_EXPONENT = 11,
-            JOINTS = 12,
+            TRANSFORM = 0,      FBO_DEPTH = 0,
+            CAMERA = 1,         FBO_COLOR_0 = 1,
+            PERSPECTIVE = 2,    FBO_COLOR_1 = 2,
+            DIFFUSE = 3,        FBO_COLOR_2 = 3,    TEXT_COLOR = 3,     
+            SPECULAR = 4,       FBO_COLOR_3 = 4,
+            FOG_DENSITY = 5,    FBO_COLOR_4 = 5,
+            FOG_EXPONENT = 6,   FBO_COLOR_5 = 6,
+            SKY_UP = 7,         FBO_COLOR_6 = 7,
+            SKY_DOWN = 8,       FBO_COLOR_7 = 8,
+            SKY_VEC = 9,
+            JOINTS = 10,
+            CLIPPING_PLANE = 11,
+            TIME = 12,
             
             /*Collections allow for loading a single uniform to an entire collection of shaders
               A shader may belong to many collections
-              A shader belonging to 0 will never be used when loading a uniform to many
+              A shader belonging to 0 will never be used when loading a uniform to many.
+              Some flags are mutually exclusive (FBO would overlap with camera and atmosphere)
             */
             
-            COLLECTION_UNIQUE = 0,
-            COLLECTION_3D = 1,
-            COLLECTION_FBO = 2,
-            COLLECTION_TEXT = 4;
-            
+            COLLECTION_UNIQUE = 0,                  // Does not recieve any universal uniforms
+            COLLECTION_USE_CAMERA_TRANSFORM = 1,    // Load camera perspective and location
+            COLLECTION_FBO = 2,                     // Uses depth and all 8 FBO color attachments
+            COLLECTION_TEXT = 4,                    // Uses Text Settings (such as color)
+            COLLECTION_USE_ATMOSPHERE = 8,          // Uses Fog Color and World Settings 6-11
+            COLLECTION_USE_CLIPPING = 16,           // Uses the global water level 
+            COLLECTION_USE_TIME = 32,
+    
+            CAUSTIC_TEXTURE_SLOT = GL_TEXTURE1,
+            CAUSTIC_TEXTURE_ID = AssetManager.getTexture("wave");
             
     
     // Shader Properties
@@ -51,9 +57,11 @@ public abstract class Shader {
     private int vertexShaderID;
     private int fragmentShaderID;
     private int collection = 0;
-    private String fileName = "";
+    private String vertName = "";
+    private String fragName = "";
     private String[] uniformNames;
     private String[] attributeNames;
+    public boolean useCausticTexture = false;
     
     // Uniform List, Stores the value of the found uniform
     private int uniform[] = new int[MAX_UNIFORM_COUNT];
@@ -63,21 +71,21 @@ public abstract class Shader {
         vertexShaderID = 0;
         fragmentShaderID = 0;
         collection = 0;
-        fileName = "";
     }
     
-    public Shader(String name, String[] attributes, String[] uniforms, int collection ){
+    public Shader(String vert, String frag, String[] attributes, String[] uniforms, int collection ){
         bind();
         this.collection = collection;
         // Load the shader from client files
-        fileName = name;
         uniformNames = uniforms;
         attributeNames = attributes;
         vertexShaderID = glCreateShader(GL_VERTEX_SHADER);
         fragmentShaderID = glCreateShader(GL_FRAGMENT_SHADER);
+        vertName = vert;
+        fragName = frag;
         String sep = System.getProperty("file.separator");
-        loadFromFile("assets"+sep+"shaders"+sep+"vert"+sep+""+name+".vert", vertexShaderID);
-        loadFromFile("assets"+sep+"shaders"+sep+"frag"+sep+""+name+".frag",fragmentShaderID);
+        loadFromFile("assets"+sep+"shaders"+sep+"vert"+sep+""+vertName+".vert", vertexShaderID);
+        loadFromFile("assets"+sep+"shaders"+sep+"frag"+sep+""+fragName+".frag",fragmentShaderID);
         
         // Create the shader program
         programID = glCreateProgram();
@@ -96,6 +104,7 @@ public abstract class Shader {
         // Validates the Program
         glValidateProgram(programID);
         loadedShaders.add(this);
+        
     }
     
     /**
@@ -132,6 +141,10 @@ public abstract class Shader {
         glUniformMatrix4fv(uniform[uniformID], false, buffer);
     }
     
+    public void uniformMatrix4f(int uniformID, float[] matrix){
+        glUniformMatrix4fv(uniform[uniformID], false, matrix);
+    }
+    
     public void uniformMatrix4fArray(int uniformID, float[] matrices) {
         glUniformMatrix4fv(uniform[uniformID], false, matrices);
         return;
@@ -139,7 +152,7 @@ public abstract class Shader {
     
     public static void uniformAllMatrix4f(int uniformID, Matrix4f matrix, int collectionMask){
         for(Shader shader:loadedShaders){
-            if((shader.collection & collectionMask) == shader.collection){
+            if((shader.collection & collectionMask) == collectionMask){
                 shader.bind();
                 float[] buffer = new float[16];
                 matrix.get(buffer);
@@ -151,6 +164,16 @@ public abstract class Shader {
     
     public void uniformVector4f(int uniformID, Vector4f vector){
         glUniform4f(uniform[uniformID], vector.x, vector.y, vector.z, vector.w);
+    }
+    
+    public static void uniformAllVector4f(int uniformID, Vector4f vector, int collectionMask) {
+        for (Shader shader : loadedShaders) {
+            if((shader.collection & collectionMask) == collectionMask){
+                shader.bind();
+                glUniform4f(shader.uniform[uniformID], vector.x, vector.y, vector.z, vector.w);
+            }
+        }
+        glUseProgram(0);
     }
     
     public void uniformVector3f(int uniformID, Vector3f vector){
@@ -209,6 +232,20 @@ public abstract class Shader {
         glUseProgram(programID);
     }
     
+    public void bindTextures(){
+        
+        if(useCausticTexture){
+                glActiveTexture(CAUSTIC_TEXTURE_SLOT);
+            if(enableCausticTexture){
+                glBindTexture(GL_TEXTURE_2D, CAUSTIC_TEXTURE_ID);
+            }
+            else{
+                glBindTexture(GL_TEXTURE_2D, 0);
+            }
+            glActiveTexture(GL_TEXTURE0);
+        }
+    }
+    
     public void unbind(){
         glUseProgram(0);
     }
@@ -256,14 +293,10 @@ public abstract class Shader {
         return shaderID;
     }
     
-    public void recompile(String newFileName){
-        if(newFileName != null){
-            fileName = newFileName;
-        }
-        
+    public void recompile(){
             String sep = System.getProperty("file.separator");
-            loadFromFile("assets"+sep+"shaders"+sep+"vert"+sep+""+fileName+".vert", vertexShaderID);
-            loadFromFile("assets"+sep+"shaders"+sep+"frag"+sep+""+fileName+".frag",fragmentShaderID);
+            loadFromFile("assets"+sep+"shaders"+sep+"vert"+sep+""+vertName+".vert", vertexShaderID);
+            loadFromFile("assets"+sep+"shaders"+sep+"frag"+sep+""+fragName+".frag",fragmentShaderID);
             
             if(programID == 0){
                 programID = glCreateProgram();
@@ -279,7 +312,7 @@ public abstract class Shader {
     
     public static void recompileAll(){
         for(Shader shader:loadedShaders){
-            shader.recompile(null);
+            shader.recompile();
         }
     }
     
@@ -288,19 +321,38 @@ public abstract class Shader {
      // Default Shader
     defaultShader = new Shader(
                 "default",
+                "default",
                 new String[]{"pos", "uv", "normal", "vertex_color"},
-                new String[]{"transform", "camera", "perspective", "diffuse", "specular", "world_exponent", "gloss", "zenith", "horizon", "albedo", "fog_density", "fog_exponent"},
-                Shader.COLLECTION_3D
-        ) {
+                new String[]{
+                "transform",                //0
+                "camera",                   //1
+                "perspective",              //2
+                "diffuse",                  //3
+                "specular",                 //4
+                "fog_density",              //5
+                "fog_exponent",             //6
+                "sky_up",                   //7
+                "sky_down",                 //8
+                "sky_vec",                  //9
+                "",                         //10
+                "clipping_plane",           //11
+                "time"                      //12
+            },
+               COLLECTION_USE_CAMERA_TRANSFORM |
+               COLLECTION_USE_ATMOSPHERE |
+               COLLECTION_USE_CLIPPING |
+               COLLECTION_USE_TIME
+        )
+            
+    {
             public Vector3f diffuse = new Vector3f(.8f, .7f, .7f);
-            public float specular = 1f,
-                    gloss = 10f;
+            public float specular = 10f,
+                    gloss = 3f;
 
             @Override
             public void loadUniformSettings() {
                 uniformVector3f(Shader.DIFFUSE, diffuse);
                 uniformFloat(Shader.SPECULAR, specular);
-                uniformFloat(Shader.GLOSS, gloss);
             }
 
         };
@@ -308,22 +360,40 @@ public abstract class Shader {
     // Animated Default Shader
     animatedShader = new Shader(
                 "animated",
+                "default",
                 new String[]{"pos", "uv", "normal", "vertex_color", "joint", "weight"},
-                new String[]{"transform", "camera", "perspective", "diffuse", "specular", "world_exponent", "gloss", "zenith", "horizon", "albedo", "fog_density", "fog_exponent", "joints"},
-                Shader.COLLECTION_3D
+                new String[]{
+                "transform",                //0
+                "camera",                   //1
+                "perspective",              //2
+                "diffuse",                  //3
+                "specular",                 //4
+                "fog_density",              //5
+                "fog_exponent",             //6
+                "sky_up",                   //7
+                "sky_down",                 //8
+                "sky_vec",                  //9
+                "joints",                   //10
+                "clipping_plane",           //11
+                "time"                      //12
+            },
+               COLLECTION_USE_CAMERA_TRANSFORM |
+               COLLECTION_USE_ATMOSPHERE |
+               COLLECTION_USE_CLIPPING
         ) {
             public Vector3f diffuse = new Vector3f(.7f, .7f, .7f);
-            public float specular = 1f,
-                    gloss = 10f;
+            public float specular = 10f,
+                    gloss = 3f;
 
             @Override
             public void loadUniformSettings() {
                 uniformVector3f(Shader.DIFFUSE, diffuse);
                 uniformFloat(Shader.SPECULAR, specular);
-                uniformFloat(Shader.GLOSS, gloss);
             }
 
         };
+    defaultShader.useCausticTexture = true;
+    animatedShader.useCausticTexture = true;
     }
     
 }

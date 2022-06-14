@@ -105,8 +105,8 @@ public class AssimpLoader {
         while(vertices.remaining()>0){
             v3 = vertices.get();
             pos.add(v3.x());
-            pos.add(v3.y());
             pos.add(v3.z());
+            pos.add(-v3.y());
             
         }
         
@@ -127,8 +127,8 @@ public class AssimpLoader {
              while(normals.remaining()>0){
                 v3 = normals.get();
                 norm.add(v3.x());
-                norm.add(v3.y());
                 norm.add(v3.z());
+                norm.add(-v3.y());
             }
         }
         
@@ -330,6 +330,7 @@ public class AssimpLoader {
             // Assume all children are Joints
             ArmatureInfo armature = new ArmatureInfo(name[1], getTotalChildren(node));
             AssetManager.addArmature(name[1],armature );
+            System.out.println("Armature: "+name[1]);
             AINode child;
             
             for (int i = 0; i < node.mNumChildren(); i++) {

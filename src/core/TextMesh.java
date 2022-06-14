@@ -184,7 +184,7 @@ public class TextMesh {
     }
     
     private void updateTransform2D(){
-        transform.identity().translate((pos.x*2f-1),-(pos.y*2f-1),0).scaleXY(scale/Scene.camera.aspect, scale);//;
+        transform.identity().translate((pos.x*2f-1),-(pos.y*2f-1),0).scaleXY(scale/Scene.activeScene.camera.aspect, scale);//;
     }
     
     public void setTransform3D(Vector3f pos, Vector3f rot, float scale){
@@ -280,6 +280,7 @@ public class TextMesh {
     public static void init() {
         loadFont("default");
         shader = new Shader(
+                "text",
                 "text",
                 new String[]{"pos", "uv", "", ""},
                 new String[]{"transform", "", "perspective", "text_color", "", "", "", "", "", "", "", ""},

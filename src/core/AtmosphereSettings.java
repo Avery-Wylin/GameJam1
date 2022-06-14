@@ -22,10 +22,22 @@ public class AtmosphereSettings {
     public static final float RADIUS = 100;
     private static Matrix4f skyTransform = new Matrix4f().scale(RADIUS);
     private static Shader skyshader = new Shader(
-        "sky",    
+        "sky",
+        "sky",
         new String[]{"pos","", "normal", ""},
-        new String[]{"transform", "camera", "perspective", "", "", "world_exponent", "", "zenith", "horizon", "albedo", "fog_density", "fog_exponent"},
-        Shader.COLLECTION_3D
+        new String[]{
+                "transform",                //0
+                "camera",                   //1
+                "perspective",              //2
+                "",                         //3
+                "",                         //4
+                "fog_density",              //5
+                "fog_exponent",             //6
+                "sky_up",                   //7
+                "sky_down",                 //8
+                "sky_vec",                  //9
+            },
+        Shader.COLLECTION_USE_CAMERA_TRANSFORM | Shader.COLLECTION_USE_ATMOSPHERE
     ){
         @Override
         public void loadUniformSettings() {
@@ -34,36 +46,28 @@ public class AtmosphereSettings {
     };
     
     
-    private boolean updated = true;
     public Vector3f
-    zenith,
-    horizon,
-    albedo;
+    up,
+    down,
+    direction;
     public float
     fog_density,
-    fog_exponent,
-    world_exponent;
+    fog_exponent;
     
     public AtmosphereSettings(){
-        zenith = new Vector3f(.85f,.9f, 1f);
-        horizon = new Vector3f(.65f,.85f,.9f);
-        albedo = new Vector3f(.2f,.3f,.7f);
-        fog_density = .03f;
+        up = new Vector3f(1f,1f, 1f);
+        down = new Vector3f(0f, 0f,0f);
+        direction = new Vector3f( 0f, 1f, 0f);
+        fog_density = .02f;
         fog_exponent = 2f;
-        world_exponent = .5f;
-        updated = true;
     }
 
     public void loadUniforms() {
-        if(updated){
-            Shader.uniformAllVector3f(Shader.ZENITH, zenith, Shader.COLLECTION_3D);
-            Shader.uniformAllVector3f(Shader.HORIZON, horizon, Shader.COLLECTION_3D);
-            Shader.uniformAllVector3f(Shader.ALBEDO, albedo, Shader.COLLECTION_3D);
-            Shader.uniformAllFloat(Shader.FOG_DENSITY, fog_density, Shader.COLLECTION_3D);
-            Shader.uniformAllFloat(Shader.FOG_EXPONENT, fog_exponent, Shader.COLLECTION_3D);
-            Shader.uniformAllFloat(Shader.WORLD_EXPONENT, world_exponent, Shader.COLLECTION_3D);
-            updated = false;
-        }
+            Shader.uniformAllVector3f(Shader.SKY_UP, up, Shader.COLLECTION_USE_ATMOSPHERE);
+            Shader.uniformAllVector3f(Shader.SKY_DOWN, down, Shader.COLLECTION_USE_ATMOSPHERE);
+            Shader.uniformAllVector3f(Shader.SKY_VEC, direction, Shader.COLLECTION_USE_ATMOSPHERE);
+            Shader.uniformAllFloat(Shader.FOG_DENSITY, fog_density, Shader.COLLECTION_USE_ATMOSPHERE);
+            Shader.uniformAllFloat(Shader.FOG_EXPONENT, fog_exponent, Shader.COLLECTION_USE_ATMOSPHERE);
     }
     
     public void render() {
@@ -73,7 +77,4 @@ public class AtmosphereSettings {
         glDrawElements(GL_TRIANGLES, skybox.getIndexCount(), GL_UNSIGNED_INT, 0);
     }
 
-    public void update() {
-        updated = true;
-    }
 }

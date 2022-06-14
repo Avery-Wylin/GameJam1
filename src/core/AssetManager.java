@@ -1,5 +1,7 @@
 package core;
 
+import core.audio.SoundBuffer;
+import core.audio.SoundSource;
 import core.animation.Armature;
 import core.animation.ArmatureInfo;
 import java.nio.ByteBuffer;
@@ -14,7 +16,6 @@ public class AssetManager {
     
     private static HashMap<String,Integer> textures = new HashMap<>();
     private static HashMap<String,Mesh> meshes = new HashMap<>();
-    private static HashMap<String,Integer> soundSources = new HashMap<>();
     private static HashMap<String,Integer> soundBuffers = new HashMap<>();
     private static HashMap<String,ArmatureInfo> armatures = new HashMap<>();
     
@@ -32,10 +33,6 @@ public class AssetManager {
     
     public static void addMesh(String name, Mesh mesh){
         meshes.put(name, mesh);
-    }
-    
-    public static int getSoundSource(String source){
-        return soundSources.getOrDefault(source, 0);
     }
     
     public static int getSound(String sound){
@@ -71,6 +68,9 @@ public class AssetManager {
     public static void loadResources(){
         AssimpLoader.loadFromFBX("test");
         TextureManager.createTexture("sand");
+        TextureManager.createTexture("tile");
+        TextureManager.createTexture("wave");
+        soundBuffers.put("ringtone", new SoundBuffer("ringtone").getSoundID());
     }
     
     

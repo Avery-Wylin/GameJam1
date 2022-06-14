@@ -5,19 +5,21 @@ import core.Camera;
 import core.FBO;
 import core.Shader;
 import core.TextMesh;
-import core.animation.Armature;
-import core.instances.Actable;
 import core.instances.Instance;
+import core.instances.PhysicsInstance;
+import core.instances.SphereInstance;
 import java.util.ArrayList;
 import org.joml.Vector3f;
 import org.lwjgl.opengl.GL11;
 import static org.lwjgl.opengl.GL11.glDisable;
 
 public class Scene {
-    public static Camera camera;
-    ArrayList<Actable> actableObjects = new ArrayList<>();
-    ArrayList<Instance> instances = new ArrayList<>();
-    ArrayList<TextMesh> texts = new ArrayList<>();
+    
+    public static Scene activeScene;
+    
+    public Camera camera;
+    public ArrayList<Instance> instances = new ArrayList<>();
+    public ArrayList<TextMesh> texts = new ArrayList<>();
     public SceneRender render;
     public ScenePhysics physics;
     public boolean paused = false;
@@ -25,31 +27,33 @@ public class Scene {
     long time = System.currentTimeMillis();
     
     public Scene(){
+        activeScene = this;
         camera = new Camera();
         render = new SceneRender(this);
         init();
     }
     
     public void init(){
-        render.createInstanceRender("Render 1", AssetManager.getMesh("Suzanne"), Shader.defaultShader);
-        render.createInstanceRender("Render 2", AssetManager.getMesh("Sphere"), Shader.defaultShader);
+        render.createInstanceRender("Render 1", AssetManager.getMesh("Icosphere"), Shader.defaultShader);
         
         TextMesh text = new TextMesh("Top Left");
         text.setColor(new Vector3f(1,0,0));
         text.setTransform2D(.5f, 0, 0);
         texts.add(text);
         
-        for(int i=0; i<200; i++){
-            Instance instance = new Instance();
+        physics = new ScenePhysics();
+        physics.init(this);
+        
+        for(int i=0; i<50; i++){
+            PhysicsInstance instance = new SphereInstance();
             instances.add(instance);
-            if(Math.random()>.5f)
-                render.addInstance(instance, "Render 1");
-            else
-                render.addInstance(instance, "Render 2");
+            render.addInstance(instance, "Render 1");
+            //instance.setArmature(AssetManager.getArmature("Monkey").getArmatureCopy());
+            //instance.getArmature().setAnimation("Squirm");
+            //instance.getArmature().setTime((float)Math.random()*10);
+            physics.addPhysicsInstance(instance);
         }
         
-        physics = new ScenePhysics();
-        physics.init();
     }
 
     public void render() {
@@ -67,13 +71,17 @@ public class Scene {
         float delta = (System.currentTimeMillis()- time)/1000f;
         time = System.currentTimeMillis();
         if(!paused){
-            for(Actable obj:actableObjects){
-                obj.action(delta);
-            }
-           physics.update(instances,delta);
+           physics.update(delta, this);
+           for(Instance instance:instances){
+               if(instance.hasArmature()){
+                   instance.getArmature().addTime(delta/2f);
+               }
+           }
            //camera.focusPos.set(test.pos);
            //camera.rotateAround(4);
         }
     }
+    
+    
     
 }

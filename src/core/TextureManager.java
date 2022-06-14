@@ -74,18 +74,18 @@ public class TextureManager {
         return textureID;
     }
     
-    public static int createColorFBO(FBO fbo,int w, int h, int scaleFilter){
+    public static int createColorFBO(FBO fbo, int slot, int w, int h, int scaleFilter){
         fbo.bind();
         int textureID = glGenTextures();
         glBindTexture(GL_TEXTURE_2D, textureID);
-        glTexImage2D(GL_TEXTURE_2D,0,GL_RGB,w,h,0,GL_RGB,GL_UNSIGNED_BYTE,(ByteBuffer)null);
+        glTexImage2D(GL_TEXTURE_2D,0,GL_RGBA,w,h,0,GL_RGBA,GL_UNSIGNED_BYTE,(ByteBuffer)null);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameterIi(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, scaleFilter);
         glTexParameterIi(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, scaleFilter);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,GL_TEXTURE_2D,textureID,0);
+        glFramebufferTexture2D(GL_FRAMEBUFFER, fbo.getAttachmentID(slot),GL_TEXTURE_2D,textureID,0);
         loadedTextures.add(textureID);
-        AssetManager.addTexture("FBO Color:"+fbo.getId(), textureID);
+        AssetManager.addTexture("FBO Color "+slot+":"+fbo.getID(), textureID);
         return textureID;
     }
     
@@ -100,7 +100,7 @@ public class TextureManager {
         glTexParameterIi(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,GL_TEXTURE_2D,textureID,0);
         loadedTextures.add(textureID);
-        AssetManager.addTexture("FBO Depth:"+fbo.getId(), textureID);
+        AssetManager.addTexture("FBO Depth:"+fbo.getID(), textureID);
         return textureID;
     }
     

@@ -10,6 +10,7 @@ public class Armature {
     ArmatureInfo info;
     private float[] jointTransforms;
     private Joint[] joints;
+    private float timeMultiplier = 1f;
     float time = 0;
     Animation currentAnimation;
     
@@ -72,9 +73,9 @@ public class Armature {
     
     public void resetAnimation(){
         for(Joint j:joints){
-            j.previousPos=0;
-            j.previousRot=0;
-            j.previousScale=0;
+           j.pos.set(0);
+           j.rot.set(0,0,0,1);
+           j.scale.set(0);
         }
         setTime(0);
     }
@@ -91,7 +92,7 @@ public class Armature {
     }
     
     public void addTime(float t){
-        this.time += t;
+        this.time += t*timeMultiplier;
         if(currentAnimation != null){
             currentAnimation.deformArmature(this, time);
         }
@@ -101,6 +102,9 @@ public class Armature {
         currentAnimation = info.getAnimation(name);
     }
     
+    public void setTimeMultiplier(float t){
+        timeMultiplier = t;
+    }
     
     class Joint{
         
@@ -132,8 +136,6 @@ public class Armature {
         // This value is equivalent to the product of all parent transforms
         Matrix4f transform = new Matrix4f();
         
-        // References to the previous keyframe search index for a channel
-        int previousPos = 0, previousRot = 0, previousScale = 0;
 
         Joint(int ID){
             this.ID = ID;
@@ -144,9 +146,6 @@ public class Armature {
             j.pos.get(pos);
             j.rot.get(rot);
             j.scale.get(scale);
-            previousPos = j.previousPos;
-            previousRot = j.previousRot;
-            previousScale = j.previousScale;
             ID = j.ID;
             parent = j.parent;
             children = new ArrayList<>(j.children.size());
@@ -219,6 +218,7 @@ public class Armature {
             }
         }
     }
+    
 }
 
 

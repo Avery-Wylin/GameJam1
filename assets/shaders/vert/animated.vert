@@ -4,11 +4,14 @@ const int joint_count = 64;
 const int weight_count = 3;
 
 in vec3 pos;
+in vec2 uv;
 in vec3 vertex_color;
 in vec3 normal;
 in vec3 weight;
 in ivec3 joint;
 
+out vec2 uv_frag;
+out vec3 pos_frag;
 out vec3 normal_frag;
 out vec3 vertex_color_frag;
 out vec3 incoming;
@@ -20,6 +23,7 @@ uniform mat4 camera;
 uniform mat4 perspective;
 uniform float fog_density;
 uniform float fog_exponent;
+uniform vec4 clipping_plane;
 
 void main(void){
     
@@ -41,6 +45,8 @@ void main(void){
     vec4 world_space = transform*weighted_pos;
     vec4 camera_space = camera*world_space;
     gl_Position = perspective*camera_space;
+
+    gl_ClipDistance[0] = dot(world_space,clipping_plane);
     
     // Fix normals when uniformly scaled
     normal_frag = normalize((transform*weighted_normal).xyz);
@@ -55,4 +61,8 @@ void main(void){
     
     // pass the vertex color
     vertex_color_frag = vertex_color;
+
+    // pass the uv
+    uv_frag = uv;
+    pos_frag = normalize(camera_space.xyz);
 }

@@ -1,25 +1,32 @@
 package core.scene;
 
+import com.bulletphysics.BulletGlobals;
+import com.bulletphysics.ContactAddedCallback;
+import com.bulletphysics.ContactDestroyedCallback;
 import com.bulletphysics.collision.broadphase.*;
 import com.bulletphysics.collision.dispatch.*;
+import com.bulletphysics.collision.narrowphase.ManifoldPoint;
 import com.bulletphysics.collision.shapes.*;
 import com.bulletphysics.dynamics.*;
 import com.bulletphysics.dynamics.constraintsolver.*;
 import com.bulletphysics.linearmath.*;
-import core.instances.Instance;
+import core.Mesh;
+import core.Shader;
+import core.instances.BasicInstance;
+import core.instances.PhysicsInstance;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import javax.vecmath.Matrix4f;
-import javax.vecmath.Quat4f;
 import javax.vecmath.Vector3f;
 
 public class ScenePhysics {
-    private DynamicsWorld dynamicsWorld;
-    private ArrayList<RigidBody> rigidBodies;
+    public DynamicsWorld dynamicsWorld;
+    private ArrayList<PhysicsInstance> instances;
     
-    public RigidBody testRigidBody;
     CollisionObject groundObject;
 
-    public void init(){
+    public void init(Scene scene){
+        
+        instances = new ArrayList<>();
         
         // Initialize the World
         BroadphaseInterface broadphase = new DbvtBroadphase();
@@ -27,100 +34,119 @@ public class ScenePhysics {
         CollisionDispatcher dispatcher = new CollisionDispatcher(collisionConfiguration);
         ConstraintSolver constraintSolver = new SequentialImpulseConstraintSolver();
         dynamicsWorld = new DiscreteDynamicsWorld(dispatcher, broadphase, constraintSolver, collisionConfiguration);
-        dynamicsWorld.setGravity(new Vector3f(0,-10f,0));
+        dynamicsWorld.setGravity(new Vector3f(0,-9f,0));
+        
+        // Custom Contact Callback
+        ContactAddedCallback contactAddedCallback = new ContactAddedCallback() {
+
+            @Override
+            public boolean contactAdded(
+
+                ManifoldPoint cp, 
+                CollisionObject colObj0, 
+                int partId0, 
+                int index0,
+                CollisionObject colObj1, 
+                int partId1, 
+                int index1) {
+
+                if( colObj0.getUserPointer() instanceof PhysicsInstance ){
+                    ((PhysicsInstance)colObj0.getUserPointer()).collisionAction(colObj1.getUserPointer(), cp);
+                }
+                if( colObj1.getUserPointer() instanceof PhysicsInstance ){
+                    ((PhysicsInstance)colObj1.getUserPointer()).collisionAction(colObj0.getUserPointer(), cp);
+                }
+                
+                return false;
+            }
+        };
+        
+        
+        BulletGlobals.setContactAddedCallback(contactAddedCallback);
+        
+    
         
         // Create Ground
+        float[] pos = new float[]{-30,0,-30, 30,0,-30, 30,0,30, -30,0,30, 0,5,0};
+        float[] uv = new float[]{-3,-3, 3,-3, 3,3, -3,3, 0,0};
+        int[] index = new int[]{0,4,1, 1,4,2, 2,4,3, 3,4,0};
         
-        // Bottom
-        groundObject = new RigidBody(0, new DefaultMotionState(), new StaticPlaneShape(new Vector3f(0,1,0), 0f));
+        Mesh ground = new Mesh();
+        ground.allocate();
+        ground.loadIndex(index);
+        ground.loadAttributeFloat(Mesh.ATTRB_POS,pos);
+        ground.loadAttributeFloat(Mesh.ATTRB_UV,uv);
+        ground.smoothNormals(pos, index);
+        scene.render.createInstanceRender("ground", ground, Shader.defaultShader, "tile");
+        scene.render.addInstance(new BasicInstance(), "ground");
+        
+        IndexedMesh indexedMesh = new IndexedMesh();
+        indexedMesh.numTriangles = index.length/3;
+        indexedMesh.numVertices = pos.length/3;
+        indexedMesh.triangleIndexBase = ByteBuffer.allocateDirect(Integer.BYTES*index.length);
+        indexedMesh.triangleIndexBase.rewind().asIntBuffer().put(index);
+        indexedMesh.triangleIndexStride = 3*Integer.BYTES;
+        indexedMesh.vertexBase = ByteBuffer.allocateDirect(Float.BYTES*pos.length);
+        indexedMesh.vertexBase.rewind().asFloatBuffer().put(pos);
+        indexedMesh.vertexStride = 3*Float.BYTES;
+        
+        TriangleIndexVertexArray groundShape = new TriangleIndexVertexArray();
+        groundShape.addIndexedMesh(indexedMesh);
+        
+        CollisionShape shape = new BvhTriangleMeshShape( groundShape, true);
+        shape.setMargin(.5f);
+        
+        groundObject = new RigidBody(0, new DefaultMotionState(), shape);
         groundObject.setRestitution(.6f);
         groundObject.setFriction(4f);
         dynamicsWorld.addCollisionObject(groundObject);
-        
-        // +Z
-        groundObject = new RigidBody(0, new DefaultMotionState(), new StaticPlaneShape(new Vector3f(0,.5f,1), -20f));
-        groundObject.setRestitution(.6f);
-        groundObject.setFriction(4f);
-        dynamicsWorld.addCollisionObject(groundObject);
-        
-        // -Z
-        groundObject = new RigidBody(0, new DefaultMotionState(), new StaticPlaneShape(new Vector3f(0,.5f,-1), -20f));
-        groundObject.setRestitution(.6f);
-        groundObject.setFriction(4f);
-        dynamicsWorld.addCollisionObject(groundObject);
-        
-        // +X
-        groundObject = new RigidBody(0, new DefaultMotionState(), new StaticPlaneShape(new Vector3f(1,.5f,0), -20f));
-        groundObject.setRestitution(.6f);
-        groundObject.setFriction(4f);
-        dynamicsWorld.addCollisionObject(groundObject);
-        
-        // -X
-        groundObject = new RigidBody(0, new DefaultMotionState(), new StaticPlaneShape(new Vector3f(-1,.5f,0), -20f));
-        groundObject.setRestitution(.6f);
-        groundObject.setFriction(4f);
-        dynamicsWorld.addCollisionObject(groundObject);
-        
-        // Create Test Sphere
-        CollisionShape testCollision = new SphereShape(1f);
-        MotionState testMotion = new DefaultMotionState(new Transform(new Matrix4f(new Quat4f(0,0,0,1f), new Vector3f(0,10f,0),1f)));
-        Vector3f inertia = new Vector3f();
-        testCollision.calculateLocalInertia(1f, inertia);
-        RigidBodyConstructionInfo testConstructionInfo = new RigidBodyConstructionInfo(1, testMotion, testCollision, inertia);
-        
-        rigidBodies = new ArrayList<>();
-        
-        for(int i=0; i<200; i++){
-            testRigidBody = new RigidBody(testConstructionInfo);
-            testRigidBody.setWorldTransform(new Transform(new Matrix4f(new Quat4f(0,0,0,1), new Vector3f((float)Math.random()*10,(float)Math.random()*10+10,(float)Math.random()*10),1)));
-            //testRigidBody.setLinearVelocity(new Vector3f(0,.1f,0));
-            testRigidBody.setAngularVelocity(new Vector3f((float)Math.random()*1,(float)Math.random()*1,(float)Math.random()*1));
-            testRigidBody.setRestitution(.25f);
-            testRigidBody.setDamping(.5f, .5f);
-            rigidBodies.add(testRigidBody);
-            dynamicsWorld.addRigidBody(testRigidBody);
-        }
-        
-        testRigidBody = rigidBodies.get(0);
-        
+       
+    }
+    
+    public void addPhysicsInstance(PhysicsInstance instance){
+        instances.add(instance);
+        dynamicsWorld.addRigidBody(instance.rigidBody);
     }
     
     public void attractTowards(float x, float y, float z, float v){
         Transform t = new Transform();
         Vector3f force = new Vector3f();
-        for(RigidBody r:rigidBodies){
-            r.setActivationState(RigidBody.ACTIVE_TAG);
-            r.getWorldTransform(t);
+        for(PhysicsInstance instance:instances){
+            instance.rigidBody.activate();
+            instance.rigidBody.getWorldTransform(t);
             force.set(x, y, z);
             force.sub(t.origin);
             force.normalize();
             force.scale(v);
-            r.applyCentralForce(force);
+            instance.rigidBody.applyCentralForce(force);
         }
     }
     
-    public void update(ArrayList<Instance> instances, float delta){
+    public void update(float delta, Scene scene){
         dynamicsWorld.stepSimulation(delta);
-        
-        for(int i=0;i<200;i++){
-            Instance instance = instances.get(i);
-            Transform testTransform = new Transform();
-            rigidBodies.get(i).getWorldTransform(testTransform);
-            instance.pos.x = testTransform.origin.x;
-            instance.pos.y = testTransform.origin.y;
-            instance.pos.z = testTransform.origin.z;
-
-            Quat4f testQuat = new Quat4f();
-            testTransform.getRotation(testQuat);
-            org.joml.Quaternionf quat = new org.joml.Quaternionf();
-            quat.x = testQuat.x;
-            quat.y = testQuat.y;
-            quat.z = testQuat.z;
-            quat.w = testQuat.w;
-            quat.getEulerAnglesXYZ(instance.rot);
-            instance.updateTransform();
+        Transform t = new Transform();
+        Vector3f force = new Vector3f(0,20,0);
+        PhysicsInstance instance;
+        for(int i=0; i<instances.size(); i++){
+            instance = instances.get(i);
+            
+            instance.rigidBody.getWorldTransform(t);
+            if(t.origin.y<scene.render.waterPlane.getWaterLevel()){
+                instance.rigidBody.applyCentralForce(force);
+                instance.rigidBody.setDamping(.9f,.9f);
+            }
+            else{
+                instance.rigidBody.setDamping(.1f,.1f);
+            }
         }
         
+    }
+    
+    public void cleanInstances(){
+        
+    }
+
+    void waterForce(float waterLevel) {
     }
 
 }

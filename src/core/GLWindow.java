@@ -1,6 +1,8 @@
 package core;
 
-import core.control.InputContext;
+import core.audio.SoundBuffer;
+import core.audio.SoundSource;
+import external.control.InputContext;
 import core.scene.Scene;
 import org.joml.Vector3f;
 import static org.lwjgl.glfw.Callbacks.*;
@@ -20,8 +22,9 @@ import static org.lwjgl.opengl.GL11C.glClearColor;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class GLWindow implements Runnable{
+    public static GLWindow activeWindow;
     private long windowID;
-    public Scene localScene;
+    public Scene scene;
     public int width,height;
     public boolean enableCursor = false;
     
@@ -29,6 +32,7 @@ public class GLWindow implements Runnable{
     SoundSource ringSrc = new SoundSource(true, true, "seraphim");
     
     public GLWindow(){
+        activeWindow = this;
         init();
     }
     
@@ -100,8 +104,8 @@ public class GLWindow implements Runnable{
                     
                     // Fit the GL view to the window, updates aspect ratio for Text, Camera, and UI
                     glViewport(0,0,width,height);
-                    localScene.camera.setViewDimensions(width, height);
-                    localScene.camera.updatePerspective();
+                    scene.camera.setViewDimensions(width, height);
+                    scene.camera.updatePerspective();
                     TextMesh.updateAspect();
                 }
             }
@@ -160,9 +164,9 @@ public class GLWindow implements Runnable{
             InputContext.getActive().update();
             
             // Render
-            localScene.camera.updateCameraTransform();
-            localScene.render();
-            localScene.update();
+            scene.camera.updateCameraTransform();
+            scene.render();
+            scene.update();
             
             glfwSwapBuffers(windowID);
             glfwPollEvents();

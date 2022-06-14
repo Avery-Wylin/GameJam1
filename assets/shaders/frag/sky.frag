@@ -2,20 +2,16 @@
 
 
 in vec3 normal_frag;
+in vec3 pos_frag;
 
-out vec4 color;
+layout(location = 0) out vec4 color_0;
 
 uniform float world_exponent;
-uniform vec3 zenith;
-uniform vec3 horizon;
-uniform vec3 albedo;
+uniform vec3 sky_up;
+uniform vec3 sky_down;
+uniform vec3 sky_vec;
 
 void main(void){
 
-float dotUp = pow( max(dot(vec3(0,-1,0),normal_frag),0),world_exponent);
-float dotDown = pow( max(dot(vec3(0,1,0),normal_frag),0),world_exponent);
-
-vec3 world = mix(mix(horizon,albedo,dotDown),zenith,dotUp);
-
-color.xyz = world;
+color_0.xyz = mix(sky_down,sky_up,(dot(normal_frag,-sky_vec)+1)/2);
 }
